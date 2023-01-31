@@ -20,7 +20,7 @@ type Reminder struct {
 
 var db = make(map[int64]Reminder)
 
-func response(lang string) translation {
+func newResponse(lang string) translation {
 	switch lang {
 	case "en":
 		return Translations.en
@@ -32,11 +32,11 @@ func response(lang string) translation {
 }
 
 func handleStart(c tele.Context) error {
-	return c.Send(response(c.Sender().LanguageCode).start)
+	return c.Send(newResponse(c.Sender().LanguageCode).start)
 }
 
 func handleHelp(c tele.Context) error {
-	return c.Send(response(c.Sender().LanguageCode).help)
+	return c.Send(newResponse(c.Sender().LanguageCode).help)
 }
 
 func handleNewReminder(c tele.Context) error {
@@ -45,7 +45,7 @@ func handleNewReminder(c tele.Context) error {
 	timeArg := strings.TrimSpace(timeRegExp.FindString(c.Message().Payload))
 
 	if len(timeArg) == 0 {
-		return c.Send(response(lang).badParams)
+		return c.Send(newResponse(lang).badParams)
 	}
 
 	timeWithUnits := strings.ReplaceAll(timeArg, "-", "h") + "m"
@@ -53,13 +53,13 @@ func handleNewReminder(c tele.Context) error {
 	firesAt := time.Now().Add(duration)
 
 	if err != nil {
-		return c.Send(response(lang).badParams)
+		return c.Send(newResponse(lang).badParams)
 	}
 
 	const minutesInADay = 1440
 
 	if duration.Minutes() < 1 || duration.Minutes() > float64(minutesInADay) {
-		return c.Send(response(lang).outOfRange)
+		return c.Send(newResponse(lang).outOfRange)
 	}
 
 	chatId := c.Chat().ID
@@ -74,16 +74,16 @@ func handleNewReminder(c tele.Context) error {
 		message := strings.TrimSpace(messageArg)
 
 		if len(message) > 0 {
-			c.Send(response(lang).alertWithMessage + " " + message)
+			c.Send(newResponse(lang).alertWithMessage + " " + message)
 		} else {
-			c.Send(response(lang).alertWithoutMessage)
+			c.Send(newResponse(lang).alertWithoutMessage)
 		}
 
 		delete(db, chatId)
 	})
 
 	db[chatId] = Reminder{duration: duration, firesAt: firesAt, chatId: chatId, timer: timer}
-	return c.Send(response(lang).created)
+	return c.Send(newResponse(lang).created)
 }
 
 func handleCancelReminder(c tele.Context) error {
@@ -93,17 +93,10 @@ func handleCancelReminder(c tele.Context) error {
 		reminder.timer.Stop()
 		delete(db, chatId)
 
-		return c.Send(response(c.Sender().LanguageCode).cancelled)
+		return c.Send(newResponse(c.Sender().LanguageCode).cancelled)
 	}
 
-	return c.Send(response(c.Sender().LanguageCode).noReminders)
-}
-
-func init() {
-	// loads values from .env into the system
-	if err := godotenv.Load(); err != nil {
-		log.Fatal("No .env file found")
-	}
+	return c.Send(newResponse(c.Sender().LanguageCode).noReminders)
 }
 
 func main() {
@@ -116,7 +109,7 @@ func main() {
 	token, ok := os.LookupEnv("TELEGRAM_BOT_API_TOKEN")
 
 	if !ok {
-		log.Fatal("token not set")
+		log.Fatal("Telegram token variable not set")
 	}
 
 	pref := tele.Settings{
